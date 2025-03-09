@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { PrivateRoute } from './components/PrivateRoute';
-import { InstallPWA } from './components/InstallPWA';
 import { Login } from './pages/Login';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { Dashboard } from './pages/Dashboard';
@@ -17,7 +16,6 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <InstallPWA />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route

@@ -17,21 +17,11 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Adiciona evento para instalação do PWA
-window.addEventListener('beforeinstallprompt', (e) => {
-  // Previne o comportamento padrão
-  e.preventDefault();
-  // Armazena o evento para usar depois
-  window.deferredPrompt = e;
-  // Log para debug
-  console.log('PWA install prompt detected and saved');
-});
-
-// Log quando o PWA é instalado com sucesso
-window.addEventListener('appinstalled', () => {
-  console.log('PWA was installed successfully');
-  window.deferredPrompt = null;
-});
+declare global {
+  interface Window {
+    deferredPrompt: any;
+  }
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
