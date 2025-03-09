@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Wallet, Settings, Loader2, UserPlus, LogIn, Download } from 'lucide-react';
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
 export const Login: React.FC = () => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -14,7 +19,7 @@ export const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showWhatsApp, setShowWhatsApp] = useState(false);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
 
@@ -31,11 +36,18 @@ export const Login: React.FC = () => {
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
-      setDeferredPrompt(e);
+      const promptEvent = e as BeforeInstallPromptEvent;
+      setDeferredPrompt(promptEvent);
       setShowInstallBanner(true);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // Check if the app is already installed
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    if (!isStandalone) {
+      setShowInstallBanner(true);
+    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -43,7 +55,22 @@ export const Login: React.FC = () => {
   }, []);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      // Se não temos o evento prompt, podemos mostrar instruções manuais
+      const userAgent = navigator.userAgent.toLowerCase();
+      let message = '';
+
+      if (userAgent.includes('iphone') || userAgent.includes('ipad')) {
+        message = 'Para instalar o app no iOS:\n1. Toque no botão de compartilhar\n2. Selecione "Adicionar à Tela de Início"';
+      } else if (userAgent.includes('android')) {
+        message = 'Para instalar o app no Android:\n1. Toque no menu (três pontos)\n2. Selecione "Adicionar à tela inicial"';
+      }
+
+      if (message) {
+        alert(message);
+      }
+      return;
+    }
 
     setShowInstallBanner(false);
 
@@ -104,20 +131,11 @@ export const Login: React.FC = () => {
     }
   };
 
-  const switchMode = () => {
-    setIsRegistering(!isRegistering);
-    setError('');
-    setSuccess('');
-    setUsername('');
-    setPassword('');
-    setConfirmPassword('');
-  };
-
   return (
     <>
       {showInstallBanner && (
         <div className="fixed top-0 left-0 right-0 bg-dark-secondary border-b border-dark-tertiary p-4 z-50 animate-slide-up">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="bg-gold-primary/10 p-2 rounded-full">
                 <Download className="w-5 h-5 text-gold-primary" />
@@ -137,7 +155,7 @@ export const Login: React.FC = () => {
                 onClick={handleInstallClick}
                 className="px-4 py-2 bg-gold-primary text-dark-primary rounded-lg hover:bg-gold-hover transition-colors"
               >
-                Instalar
+                Instalar App
               </button>
             </div>
           </div>
