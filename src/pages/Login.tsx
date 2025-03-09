@@ -20,8 +20,20 @@ export const Login: React.FC = () => {
   const [showWhatsApp, setShowWhatsApp] = useState(false);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
+
+  // Effect to check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Effect to handle WhatsApp button animation
   useEffect(() => {
@@ -38,41 +50,51 @@ export const Login: React.FC = () => {
       e.preventDefault();
       const promptEvent = e as BeforeInstallPromptEvent;
       setDeferredPrompt(promptEvent);
-      setShowInstallBanner(true);
+      
+      // Only show banner on mobile
+      if (isMobile) {
+        // Clear any existing installation status from localStorage
+        localStorage.removeItem('pwa-install-status');
+        setShowInstallBanner(true);
+      }
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // Check if the app is already installed
+    // Check if the app is already installed or previously dismissed
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-    if (!isStandalone) {
+    const installStatus = localStorage.getItem('pwa-install-status');
+    
+    if (!isStandalone && !installStatus && isMobile) {
       setShowInstallBanner(true);
+      
+      // Force clear cache for PWA status
+      if ('caches' in window) {
+        caches.keys().then(cacheNames => {
+          cacheNames.forEach(cacheName => {
+            caches.delete(cacheName);
+          });
+        });
+      }
     }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, []);
+  }, [isMobile]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) {
-      // Se não temos o evento prompt, podemos mostrar instruções manuais
-      const userAgent = navigator.userAgent.toLowerCase();
-      let message = '';
-
-      if (userAgent.includes('iphone') || userAgent.includes('ipad')) {
-        message = 'Para instalar o app no iOS:\n1. Toque no botão de compartilhar\n2. Selecione "Adicionar à Tela de Início"';
-      } else if (userAgent.includes('android')) {
-        message = 'Para instalar o app no Android:\n1. Toque no menu (três pontos)\n2. Selecione "Adicionar à tela inicial"';
+      // Manual installation instructions for iOS
+      if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+        alert('Para instalar no iOS:\n1. Toque no botão de compartilhar (ícone de quadrado com seta para cima)\n2. Role para baixo e toque em "Adicionar à Tela de Início"');
       }
-
-      if (message) {
-        alert(message);
+      // Manual installation instructions for Android
+      else if (/Android/.test(navigator.userAgent)) {
+        alert('Para instalar no Android:\n1. Toque no menu (três pontos)\n2. Toque em "Instalar aplicativo" ou "Adicionar à tela inicial"');
       }
       return;
     }
-
-    setShowInstallBanner(false);
 
     try {
       await deferredPrompt.prompt();
@@ -80,12 +102,22 @@ export const Login: React.FC = () => {
       
       if (choiceResult.outcome === 'accepted') {
         console.log('Usuário aceitou a instalação do PWA');
+        localStorage.setItem('pwa-install-status', 'installed');
+      } else {
+        console.log('Usuário recusou a instalação do PWA');
+        localStorage.setItem('pwa-install-status', 'dismissed');
       }
       
+      setShowInstallBanner(false);
       setDeferredPrompt(null);
     } catch (error) {
       console.error('Erro ao instalar PWA:', error);
     }
+  };
+
+  const handleDismissBanner = () => {
+    setShowInstallBanner(false);
+    localStorage.setItem('pwa-install-status', 'dismissed');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -133,7 +165,7 @@ export const Login: React.FC = () => {
 
   return (
     <>
-      {showInstallBanner && (
+      {showInstallBanner && isMobile && (
         <div className="fixed top-0 left-0 right-0 bg-dark-secondary border-b border-dark-tertiary p-4 z-50 animate-slide-up">
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -146,7 +178,7 @@ export const Login: React.FC = () => {
             </div>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setShowInstallBanner(false)}
+                onClick={handleDismissBanner}
                 className="px-4 py-2 text-gray-400 hover:text-gray-300 transition-colors"
               >
                 Agora não
