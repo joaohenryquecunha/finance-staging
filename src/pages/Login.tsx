@@ -51,12 +51,9 @@ export const Login: React.FC = () => {
       const promptEvent = e as BeforeInstallPromptEvent;
       setDeferredPrompt(promptEvent);
       
-      // Only show banner on mobile
-      if (isMobile) {
-        // Clear any existing installation status from localStorage
-        localStorage.removeItem('pwa-install-status');
-        setShowInstallBanner(true);
-      }
+      // Clear any existing installation status from localStorage
+      localStorage.removeItem('pwa-install-status');
+      setShowInstallBanner(true);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -65,7 +62,7 @@ export const Login: React.FC = () => {
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     const installStatus = localStorage.getItem('pwa-install-status');
     
-    if (!isStandalone && !installStatus && isMobile) {
+    if (!isStandalone && !installStatus) {
       setShowInstallBanner(true);
       
       // Force clear cache for PWA status
@@ -76,24 +73,31 @@ export const Login: React.FC = () => {
           });
         });
       }
+
+      // Clear localStorage cache
+      localStorage.removeItem('pwa-install-status');
     }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, [isMobile]);
+  }, []);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) {
-      // Manual installation instructions for iOS
+      // For iOS devices
       if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+        setShowInstallBanner(false);
         alert('Para instalar no iOS:\n1. Toque no botão de compartilhar (ícone de quadrado com seta para cima)\n2. Role para baixo e toque em "Adicionar à Tela de Início"');
+        return;
       }
-      // Manual installation instructions for Android
-      else if (/Android/.test(navigator.userAgent)) {
+      
+      // For Android devices without installation prompt
+      if (/Android/.test(navigator.userAgent)) {
+        setShowInstallBanner(false);
         alert('Para instalar no Android:\n1. Toque no menu (três pontos)\n2. Toque em "Instalar aplicativo" ou "Adicionar à tela inicial"');
+        return;
       }
-      return;
     }
 
     try {
@@ -165,30 +169,52 @@ export const Login: React.FC = () => {
 
   return (
     <>
-      {showInstallBanner && isMobile && (
-        <div className="fixed top-0 left-0 right-0 bg-dark-secondary border-b border-dark-tertiary p-4 z-50 animate-slide-up">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="bg-gold-primary/10 p-2 rounded-full">
-                <Download className="w-5 h-5 text-gold-primary" />
+      {showInstallBanner && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-dark-secondary rounded-xl p-6 max-w-md w-full shadow-gold-lg border border-dark-tertiary animate-[slideIn_0.3s_ease-out]">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="bg-gold-primary/10 p-3 rounded-full">
+                <Download className="w-6 h-6 text-gold-primary animate-bounce" />
               </div>
-              <p className="text-gray-200">
-                Instale o app para uma melhor experiência
-              </p>
+              <div>
+                <h3 className="text-lg font-semibold text-gold-primary">Instale o Aplicativo</h3>
+                <p className="text-sm text-gray-400">Acesse facilmente pelo seu dispositivo</p>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleDismissBanner}
-                className="px-4 py-2 text-gray-400 hover:text-gray-300 transition-colors"
-              >
-                Agora não
-              </button>
-              <button
-                onClick={handleInstallClick}
-                className="px-4 py-2 bg-gold-primary text-dark-primary rounded-lg hover:bg-gold-hover transition-colors"
-              >
-                Instalar App
-              </button>
+            
+            <div className="space-y-4">
+              <div className="bg-dark-tertiary rounded-lg p-4">
+                <ul className="space-y-2 text-sm text-gray-300">
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-gold-primary rounded-full"></span>
+                    Acesso rápido à tela inicial
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-gold-primary rounded-full"></span>
+                    Funciona offline
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-gold-primary rounded-full"></span>
+                    Receba notificações importantes
+                  </li>
+                </ul>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleDismissBanner}
+                  className="flex-1 px-4 py-2.5 text-gray-400 hover:text-gray-300 bg-dark-tertiary rounded-lg transition-colors"
+                >
+                  Agora não
+                </button>
+                <button
+                  onClick={handleInstallClick}
+                  className="flex-1 px-4 py-2.5 bg-gold-primary text-dark-primary rounded-lg hover:bg-gold-hover transition-colors flex items-center justify-center gap-2"
+                >
+                  <Download size={20} />
+                  <span>Instalar</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
